@@ -1,14 +1,14 @@
-module spi_master #(parameter DATA_WIDTH = 8) (
+module spi_slave #(parameter DATA_WIDTH = 8) (
 	input                   clk     , // Clock
 	input                   srst    , // srst
 	input  [DATA_WIDTH-1:0] data_in , //data to be send to slave
 	input                   send    ,
 	input  [           1:0] mode    ,
-	input                   miso    ,
-	output                  busy
-	output                  sck     ,
-	output                  cs      ,
-	output                  mosi    ,
+	output                   miso   ,
+	output                  busy ,
+	input                  sck     ,
+	input                  cs      ,
+	input                  mosi    ,
 	output [DATA_WIDTH-1:0] data_out
 );
 
@@ -28,12 +28,7 @@ module spi_master #(parameter DATA_WIDTH = 8) (
 	state_t                      next_state;
 
 
-
-	always_ff @(posedge clk) begin
-		sck <= (curr_state == TRANSFER) ? ~sck : mode[1];
-	end
-
-	always_ff @(posedge clk) begin : proc_
+	always_ff @(posedge sck) begin : proc_
 		if(rst) begin
 			curr_state <= IDLE;
 			cs         <= 1;
@@ -71,15 +66,15 @@ module spi_master #(parameter DATA_WIDTH = 8) (
 	end
 
 
-	always_ff @(posedge sck) begin : proc_miso_reg
-		miso_reg <= {miso_reg[DATA_WIDTH-2:0],miso};
+	always_ff @(negedge sck) begin : proc_miso_reg
+		miso_reg <= miso_reg<<1;
 	end
 
-	always_ff @(negedge sck) begin : proc_mosi_reg
-		mosi_reg <=  mosi_reg<<1;
+	always_ff @(posedge sck) begin : proc_mosi_reg
+		mosi_reg <= {mosi_reg[DATA_WIDTH-2:0],mosi};
 		end
 
-assign mosi = ~cs ?  mosi_reg[DATA_WIDTH-1]:'0;
-assign data_out = curr_state == DONE ?  miso_reg :'0;
+assign miso = ~cs ?  miso_reg[DATA_WIDTH-1]:'0;
+assign data_out = curr_state == DONE ?  mosi_reg :'0;
 
-endmodule : spi_master
+endmodule : spi_slave
